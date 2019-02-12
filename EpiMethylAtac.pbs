@@ -1,0 +1,209 @@
+#!/bin/bash
+#$ -S /bin/bash
+#$ -l mem_free=50G
+#$ -pe threaded 4
+#$ -M Gunjan.Sethia@nyumc.org
+#$ -o /ifs/home/ggg256/NewProcessed_Oct/2017-12-13/oe
+#$ -e /ifs/home/ggg256/NewProcessed_Oct/2017-12-13/oe
+
+### set parameters
+Bis_ref_mm10="/ifs/home/sb5169/mm10/"
+myCHR="chr1 chr2 chr3 chr4 chr5 chr6 chr7 chr8 chr9 chr10 chr11 chr12 chr13 chr14 chr15 chr16 chr17 chr18 chr19 chrX chrY"
+mm10_blacklist="/ifs/home/ggg256/NewProcessed_Oct/mm10.blacklist.bed.gz"
+
+### inputs
+sample=$1
+reads_mode=$2
+fastq1=$3
+fastq2=$4
+RUNDIR=$5
+peak_file=$6
+
+### loading modules
+module unload python
+module load bismark/0.18.1
+module load samtools/1.3
+module load perl/5.22.1
+module load picard-tools/2.6.0
+module load deeptools/2.3.3
+module load picard-tools/2.6.0
+module load bedtools/2.26.0
+
+### mkdir subdirs
+echo " =============  Generating parent directories  ================"
+mkdir -p ${RUNDIR}/${sample}
+mkdir -p ${RUNDIR}/${sample}/1_trimFASTQ
+mkdir -p ${RUNDIR}/${sample}/2_align
+mkdir -p ${RUNDIR}/${sample}/3_methylExtract
+mkdir -p ${RUNDIR}/${sample}/4_peakCalling
+mkdir -p ${RUNDIR}/${sample}/5_mergedTSV
+mkdir -p ${RUNDIR}/${sample}/6_plots
+
+chmod 750 ${RUNDIR} -R
+
+# ---------------------------------------------------------------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  SINGLE END MODE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ---------------------------------------------------------------------------------------------------------------
+
+if [[ $reads_mode == "SE" ]]
+then
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Data is SINGLE END ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+### STEP-1
+### Trimmimg universal adapter
+echo " =============  Trimming Adapter sequences  ================"
+module load trim-galore/0.4.4
+cd ${RUNDIR}/${sample}/1_trimFASTQ
+trim_galore \
+--trim-n \
+-o ${RUNDIR}/${sample}/1_trimFASTQ \
+${fastq1}
+
+### STEP-2
+### Performing alignment
+cd ${RUNDIR}/${sample}/2_align
+date
+echo " =============  Running bismark bowtie2 ================"
+bismark --bowtie2 --p 4 --unmapped --nucleotide_coverage --output_dir ${RUNDIR}/${sample}/2_align --temp_dir ${RUNDIR}/${sample}/2_align/tmp -B ${sample} --prefix ${sample} ${Bis_ref_mm10} --se ${RUNDIR}/${sample}/1_trimFASTQ/*.fq > ${RUNDIR}/${sample}/2_align/${sample}.bismark.alignment.log
+#java -jar /local/apps/picard-tools/2.6.0/picard.jar ValidateSamFile I=${RUNDIR}/${sample}/2_align/${sample}.bam MODE=SUMMARY IS_BISULFITE_SEQUENCED=true
+mv *bam ${sample}.bam
+samtools view -u -q 30 ${sample}.bam -o ${sample}_q30.bam
+samtools sort ${sample}_q30.bam -o ${sample}_q30_sorted.bam
+java -Xmx1g -jar ${PICARD_ROOT}/picard.jar MarkDuplicates INPUT=${sample}_q30_sorted.bam OUTPUT=${sample}_q30_rmdup_sorted.bam METRICS_FILE=metrics_${sample}.txt REMOVE_DUPLICATES=true ASSUME_SORTED=true
+###Index BAM file to obtain .bai files
+samtools index ${sample}_q30_rmdup_sorted.bam
+
+BAM=${RUNDIR}/${sample}/2_align/${sample}_q30_rmdup_sorted.bam
+bamCoverage --binSize 1 -b ${BAM} -o ${BAM}.bw
+
+echo " =============  Flagstat Q30 deduplicated sorted BAM file  ================"
+samtools flagstat ${BAM}
+
+
+### STEP-3
+### Bismark-methylation extraction
+cd ${RUNDIR}/${sample}/3_methylExtract
+date
+echo " =============  Running bismark methyl extractor step  ================"
+samtools sort -n ${BAM} -o ${RUNDIR}/${sample}/3_methylExtract/${sample}_q30_rmdup_sorted_by_read_name.bam
+bismark_methylation_extractor --no_overlap --counts --comprehensive --multicore 4 --bedGraph --genome_folder $Bis_ref_mm10 -s ${sample}_q30_rmdup_sorted_by_read_name.bam
+gunzip *cov.gz
+date
+
+
+
+### STEP-4
+### Peak calling
+cd ${RUNDIR}/${sample}/4_peakCalling
+date
+echo " =============  Peak calling  ================"
+mkdir old
+mv * old/.
+module unload python
+module load macs/2.1.0.20160215
+macs2 callpeak -t ${BAM} -f BAM -n ${sample}.regular -g 1.87e9 --qvalue 0.01 --nomodel --shift 0 -B --call-summits
+sort -k 8gr,8gr ${sample}.regular_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' > ${sample}.regular_peaks.sort.narrowPeak
+bedtools intersect -v -b $mm10_blacklist -a ${sample}.regular_peaks.sort.narrowPeak > ${sample}.regular_peaks.sort.blacklistfilt.narrowPeak
+bedtools sort -i ${sample}.regular_peaks.sort.blacklistfilt.narrowPeak > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.narrowPeak
+cat ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.narrowPeak | cut -f 1,2,3 > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.simple.narrowPeak
+less ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.narrowPeak | grep "chr" | grep -v "chrM" > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.TRIM.narrowPeak
+#bedtools intersect -a ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.simple.narrowPeak -b ${RUNDIR}/${sample}/2_align/${sample}.deduplicated.sort.Q30.BedGraph -wa -wb | cut -f 4,5,6,7 | sort -k 1.4,1 -k2,2 -s -V > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.simple.narrowPeak.BedGraph
+samtools view ${RUNDIR}/${sample}/2_align/${sample}_q30_rmdup_sorted.bam | awk '$9>0' | cut -f 9 | sort | uniq -c | sort -b -k2,2n | sed -e 's/^[ \t]*//'  > ${sample}.manual.fragments
+
+
+fi
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  PAIRED END MODE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ---------------------------------------------------------------------------------------------------------------
+
+if [[ $reads_mode == "PE" ]]
+then
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Data is PAIRED END ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+### STEP-1
+### Trimmimg universal adapter
+echo " =============  Trimming Adapter sequences  ================"
+cd ${RUNDIR}/${sample}/1_trimFASTQ
+module load trim-galore/0.4.4
+trim_galore \
+--trim-n \
+-o ${RUNDIR}/${sample}/1_trimFASTQ \
+--paired ${fastq1} ${fastq2}
+
+### STEP-2
+### Performing alignment
+cd ${RUNDIR}/${sample}/2_align
+date
+echo " =============  Running bismark bowtie2 ================"
+fastq1_trim=${RUNDIR}/${sample}/1_trimFASTQ/*val_1.fq.gz
+fastq2_trim=${RUNDIR}/${sample}/1_trimFASTQ/*val_2.fq.gz
+
+bismark --bowtie2 --p 4 --unmapped --nucleotide_coverage \
+--output_dir ${RUNDIR}/${sample}/2_align \
+--temp_dir ${RUNDIR}/${sample}/2_align/tmp \
+-B ${sample} \
+--prefix ${sample} \
+${Bis_ref_mm10} \
+-1 ${fastq1_trim} -2 ${fastq2_trim} > ${RUNDIR}/${sample}/2_align/${sample}.bismark.alignment.log
+
+#java -jar /local/apps/picard-tools/2.6.0/picard.jar ValidateSamFile I=${RUNDIR}/${sample}/2_align/${sample}.bam MODE=SUMMARY IS_BISULFITE_SEQUENCED=true
+date
+mv *bam ${sample}.bam
+samtools view -u -q 30 ${sample}.bam -o ${sample}_q30.bam
+samtools sort ${sample}_q30.bam -o ${sample}_q30_sorted.bam
+java -Xmx1g -jar ${PICARD_ROOT}/picard.jar MarkDuplicates INPUT=${sample}_q30_sorted.bam OUTPUT=${sample}_q30_rmdup_sorted.bam METRICS_FILE=metrics_${sample}.txt REMOVE_DUPLICATES=true ASSUME_SORTED=true
+###Index BAM file to obtain .bai files
+samtools index ${sample}_q30_rmdup_sorted.bam
+
+
+BAM=${RUNDIR}/${sample}/2_align/${sample}_q30_rmdup_sorted.bam
+bamCoverage --binSize 1 -b ${BAM} -o ${BAM}.bw
+
+echo " =============  Flagstat Q30 deduplicated sorted BAM file  ================"
+samtools flagstat ${sample}_q30_rmdup_sorted.bam
+
+
+### STEP-3
+### Bismark-methylation extraction
+cd ${RUNDIR}/${sample}/3_methylExtract
+mkdir old
+mv * old/.
+date
+echo " =============  Running bismark methyl extractor step  ================"
+samtools sort -n ${BAM} -o ${RUNDIR}/${sample}/3_methylExtract/${sample}_q30_rmdup_sorted_by_read_name.bam
+bismark_methylation_extractor --no_overlap --counts --comprehensive --multicore 4 --bedGraph --genome_folder $Bis_ref_mm10 -p ${sample}_q30_rmdup_sorted_by_read_name.bam
+date
+gunzip *cov.gz
+
+
+### STEP-4
+### Peak calling
+cd ${RUNDIR}/${sample}/4_peakCalling
+date
+echo " =============  Peak calling  ================"
+mkdir old
+mv * old/.
+module unload python
+module load macs/2.1.0.20160215
+macs2 callpeak -t ${BAM} -f BAMPE -n ${sample}.regular -g 1.87e9 --qvalue 0.01 --nomodel --shift 0 -B --call-summits
+sort -k 8gr,8gr ${sample}.regular_peaks.narrowPeak | awk 'BEGIN{OFS="\t"}{$4="Peak_"NR ; print $0}' > ${sample}.regular_peaks.sort.narrowPeak
+bedtools intersect -v -b $mm10_blacklist -a ${sample}.regular_peaks.sort.narrowPeak > ${sample}.regular_peaks.sort.blacklistfilt.narrowPeak
+bedtools sort -i ${sample}.regular_peaks.sort.blacklistfilt.narrowPeak > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.narrowPeak
+cat ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.narrowPeak | cut -f 1,2,3 > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.simple.narrowPeak
+less ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.narrowPeak | grep "chr" | grep -v "chrM" > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.TRIM.narrowPeak
+bedtools intersect -a ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.simple.narrowPeak -b ${RUNDIR}/${sample}/2_align/${sample}.deduplicated.sort.Q30.BedGraph -wa -wb | cut -f 4,5,6,7 | sort -k 1.4,1 -k2,2 -s -V > ${sample}.regular_peaks.sort.blacklistfilt.CHR_SORT.simple.narrowPeak.BedGraph
+samtools view ${RUNDIR}/${sample}/2_align/${sample}_q30_rmdup_sorted.bam | awk '$9>0' | cut -f 9 | sort | uniq -c | sort -b -k2,2n | sed -e 's/^[ \t]*//'  > ${sample}.manual.fragments
+
+
+fi
+
+
+
+echo "ALL DONE"
+

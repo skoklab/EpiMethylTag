@@ -1,3 +1,7 @@
+##############################################################################################
+#  Authors : Gunjan Sethia, Skok lab, Dept. Pathology, NYU Langone Health  #
+##############################################################################################
+
 library(readr)
 library(sqldf)
 library(ggplot2)
@@ -58,13 +62,7 @@ pvals <- data.frame(rbind(c("group1", "group2", wilcoxtest(c.g1$counts , c.g2$co
                           c("group3", "group4", wilcoxtest(c.g3$counts , c.g4$counts)) ))
 names(pvals) <- c("GroupA", "GroupB", "wilcox.Pvalue")
 write.table(pvals, "PL_merged_groups_pvals.txt", row.names = F, col.names = T, quote = F, sep= "\t")
-  
-      
 
-
-
-
-  
 ######################################################################################################################################
 
 g1  <- NULL
@@ -73,12 +71,10 @@ g3  <- NULL
 g4  <- NULL
 final <- NULL
 
-
 file2 <- "~/Google Drive/NYUMC/Skok lab/BiSulphiteGenome_analysis/Jan_2018/atac_groups/chipseeker_mar23/g1_atac-atac-meth_00to20-cov_00to50_TSS.bed"
 file1 <- "~/Google Drive/NYUMC/Skok lab/BiSulphiteGenome_analysis/Jan_2018/atac_groups/chipseeker_mar23/g2_atac-atac-meth_00to20-cov_50andabove_TSS.bed"
 file3 <- "~/Google Drive/NYUMC/Skok lab/BiSulphiteGenome_analysis/Jan_2018/atac_groups/chipseeker_mar23/g3_atac-atac-meth_20to80_TSS.bed"
 file4 <- "~/Google Drive/NYUMC/Skok lab/BiSulphiteGenome_analysis/Jan_2018/atac_groups/chipseeker_mar23/g4_atac-atac-meth_80to100_TSS.bed"
-
 
 g1 <- data.frame(read_delim(file1, "\t", escape_double = FALSE, col_names = FALSE,  trim_ws = TRUE), stringsAsFactors=F)[,c(15,16)]
 names(g1) <- c("ensemble", "Gene")
@@ -99,7 +95,6 @@ write.table(g2$Gene[order(g2$Gene)], "Group2_Chipseeker.txt", row.names = F, col
 write.table(g3$Gene[order(g3$Gene)], "Group3_Chipseeker.txt", row.names = F, col.names = F, quote = F, sep= "\t")
 write.table(g4$Gene[order(g4$Gene)], "Group4_Chipseeker.txt", row.names = F, col.names = F, quote = F, sep= "\t")
 
-
 c.g1 <- merge(g1, counts, by="Gene")
 c.g2 <- merge(g2, counts, by="Gene")
 c.g3 <- merge(g3, counts, by="Gene")
@@ -109,7 +104,6 @@ c.g1$Groups <- "group1"
 c.g2$Groups <- "group2"
 c.g3$Groups <- "group3"
 c.g4$Groups <- "group4"
-
 
 final <- data.frame(rbind(c.g1, c.g2, c.g3, c.g4), stringsAsFactors = F)
 n <- c(dim(c.g1)[1], dim(c.g2)[1], dim(c.g3)[1], dim(c.g4)[1])
@@ -131,7 +125,4 @@ ggplot(data=final ,aes(x=Groups,y=log10(counts), fill=Groups)) +
                             c("group3", "group4", wilcoxtest(c.g3$counts , c.g4$counts)) ))
   names(pvals) <- c("GroupA", "GroupB", "wilcox.Pvalue")
   write.table(pvals, "Chipseeker_merged_groups_pvals.txt", row.names = F, col.names = T, quote = F, sep= "\t")
-  
-  
-  
   

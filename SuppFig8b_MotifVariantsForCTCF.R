@@ -1,3 +1,8 @@
+
+##############################################################################################
+#  Authors : Franco Izz, Landau Lab, Weill Cornell Medicine #
+##############################################################################################
+
 library(methylKit)
 library(genomation)
 library(GenomicRanges)
@@ -42,8 +47,6 @@ for(i in names(motifs)){
   motifs[[i]]$motifStart = motifs[[i]]$chrStart + motifs[[i]]$start
   motifs[[i]]$motifEnd = motifs[[i]]$chrStart + motifs[[i]]$stop
 }
-
-
 
 motifRangesList = lapply(motifs, function(x){
   x = GRanges(seqnames = x$chr,
@@ -150,8 +153,3 @@ for(i in levels(melted$Motif)){
 }}
 pvals = unlist(pvals)
 write.table(as.data.frame(pvals), file = "/Volumes/DS/Franco/PriscilliaProject/pvaluesWilcoxonMotifVariants.txt", quote = F, sep = "\t", col.names = T, row.names = T)
-
-
-
-
-

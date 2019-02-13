@@ -203,8 +203,3 @@ samtools view ${RUNDIR}/${sample}/2_align/${sample}_q30_rmdup_sorted.bam | awk '
 
 
 fi
-
-
-
-echo "ALL DONE"
-

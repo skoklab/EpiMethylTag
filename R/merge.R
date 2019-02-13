@@ -1,3 +1,7 @@
+##############################################################################################
+#  Authors : Gunjan Sethia, Skok lab, Dept. Pathology, NYU Langone Health  #
+##############################################################################################
+
 library(optparse)
 args = commandArgs(trailingOnly=TRUE)
 sample=args[1]

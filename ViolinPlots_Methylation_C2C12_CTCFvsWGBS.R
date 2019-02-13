@@ -1,3 +1,7 @@
+##############################################################################################
+#  Authors : Priscillia Lhoumaud & Sana Badri, Skok lab, Dept. Pathology, NYU Langone Health #
+##############################################################################################
+
 setwd("C:/Users/lhoump01/Google Drive/method paper/Samples_December2017/Motifs/December2017_CTCF_MA0139/Violin/")
 library(ggplot2)
 

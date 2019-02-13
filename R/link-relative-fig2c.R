@@ -1,3 +1,6 @@
+##############################################################################################
+#  Authors : Gunjan Sethia, Skok lab, Dept. Pathology, NYU Langone Health  #
+##############################################################################################
 
 # get gene coordinates
 counts <- data.frame(read_delim("~/Google Drive/NYUMC/Skok lab/BiSulphiteGenome_analysis/Jan_2018/gene_expression/RNAseq-mESC-merged.TPM.unstr.txt", "\t", escape_double = FALSE, col_names = TRUE,  trim_ws = TRUE), stringsAsFactors = F)

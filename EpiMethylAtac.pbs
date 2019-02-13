@@ -1,3 +1,7 @@
+##############################################################################################
+#  Authors : Gunjan Sethia, Skok lab, Dept. Pathology, NYU Langone Health  #
+##############################################################################################
+
 #!/bin/bash
 #$ -S /bin/bash
 #$ -l mem_free=50G
@@ -81,7 +85,6 @@ bamCoverage --binSize 1 -b ${BAM} -o ${BAM}.bw
 echo " =============  Flagstat Q30 deduplicated sorted BAM file  ================"
 samtools flagstat ${BAM}
 
-
 ### STEP-3
 ### Bismark-methylation extraction
 cd ${RUNDIR}/${sample}/3_methylExtract
@@ -91,8 +94,6 @@ samtools sort -n ${BAM} -o ${RUNDIR}/${sample}/3_methylExtract/${sample}_q30_rmd
 bismark_methylation_extractor --no_overlap --counts --comprehensive --multicore 4 --bedGraph --genome_folder $Bis_ref_mm10 -s ${sample}_q30_rmdup_sorted_by_read_name.bam
 gunzip *cov.gz
 date
-
-
 
 ### STEP-4
 ### Peak calling

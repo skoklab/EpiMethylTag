@@ -1,4 +1,8 @@
-setwd("~/Google Drive/NYUMC/Skok lab/BiSulphiteGenome_analysis/June_2018_re-doing-some-plots/CTCF_motif_plots")
+##############################################################################################
+#  Authors : Gunjan Sethia, Skok lab, Dept. Pathology, NYU Langone Health  #
+##############################################################################################
+
+#setwd("~/Google Drive/NYUMC/Skok lab/BiSulphiteGenome_analysis/June_2018_re-doing-some-plots/CTCF_motif_plots")
 
 library(readr)
 
@@ -21,7 +25,6 @@ dim(merged)
 dim(tsv)
 
 unique.reads <- unique(merged$read)
-
 
 final <- data.frame()
 for (i in 1:length(unique.reads)){
@@ -147,7 +150,4 @@ observed
 
 data.frame(table(df$meth.status))
 data.frame(table(df$meth.status.1))
-
-
-
 

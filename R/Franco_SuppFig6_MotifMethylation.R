@@ -1,3 +1,7 @@
+##############################################################################################
+#  Authors : Franco Izz, Landau Lab, Weill Cornell Medicine #
+##############################################################################################
+
 library(methylKit)
 library(readr)
 library(ggplot2)
@@ -118,24 +122,9 @@ wilcox.test(all$value[all$L1 == "Nanog_Homer" & all$Technique == "ATAC"],all$val
 wilcox.test(all$value[all$L1 == "Oct4_denovo" & all$Technique == "ATAC"],all$value[all$L1 == "Oct4_denovo" & all$Technique == "WGBS"])
 wilcox.test(all$value[all$L1 == "Oct4_known9" & all$Technique == "ATAC"],all$value[all$L1 == "Oct4_known9" & all$Technique == "WGBS"])
 
-
-
 sites = data.frame(
 All_in_mm10 = unlist(lapply(MotifOcurrence, function(x) length(x@seqnames))),
 All_in_ATAC_peaks = unlist(lapply(MotifMeth$ATAC, function(x) length(x@seqnames))),
 All_in_WGBS_peaks = unlist(lapply(MotifMeth$WGBS, function(x) length(x@seqnames))))
 
 write.table(sites, file = "/Volumes/DS/Franco/PriscilliaProject/Motifs/NumberOfSites.csv", quote = F, row.names = T, col.names = T)
-
-
-
-
-
-
-
-
-
-
-
-
-

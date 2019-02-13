@@ -1,3 +1,8 @@
+##############################################################################################
+#  Authors : Priscillia Lhoumaud & Sana Badri, Skok lab, Dept. Pathology, NYU Langone Health #
+##############################################################################################
+
+
 setwd("C:/Users/lhoump01/Google Drive/method paper/Samples_December2017/Gunjan/scatter-plots/scatter-plots_ATAC_and_CTCF-PDFs/methylation/")
 
 ############## ATAC versus WGBS #####################

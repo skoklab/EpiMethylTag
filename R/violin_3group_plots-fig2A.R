@@ -1,3 +1,7 @@
+##############################################################################################
+#  Authors : Gunjan Sethia, Skok lab, Dept. Pathology, NYU Langone Health  #
+##############################################################################################
+
 library(readr)
 library(grDevices)
 library(ggplot2)
@@ -79,11 +83,8 @@ meth.vs.coverage <- function(file1, coverage.cutoff){
                             c("group2", "group3", wilcoxtest(log10(data2$coverage[data2$group=="21-80"]) , log10(data2$coverage[data2$group=="81-100"]))) ))
   names(pvals) <- c("Group-A", "Group-B", "wilcox.Pvalue")
   write.table(pvals, paste0("meth_vs_cov_plots/",title2,"_pvals.txt"), row.names = F, col.names = T, quote = F, sep= "\t")
-  
 
-  
 }
-
 
 meth.vs.coverage("atac.merged.Peak_wgbs.Cov__MERGED.tsv", 5)
 meth.vs.coverage("atac.merged.Peak_atac.merged.Cov__MERGED.tsv", 5)
@@ -97,7 +98,6 @@ head(data2)
 data2$ID <- paste0(data2$meth.chr, ":", data2$meth.start, ":", data2$meth.end)
 df <- data2
 
-
 write.table(data2[data2$group=="0-20" & data2$coverage<50,c(1:3)], 
             "atac.peak.atac.cov_0-20_meth_cov_less_50.bed", sep="\t", row.names = F, col.names = F, quote = F)
 write.table(data2[data2$group=="0-20" & data2$coverage>50,c(1:3)], 
@@ -106,8 +106,3 @@ write.table(data2[data2$group=="21-80",c(1:3)],
             "atac.peak.atac.cov_21-80_meth.bed", sep="\t", row.names = F, col.names = F, quote = F)
 write.table(data2[data2$group=="81-100",c(1:3)], 
             "atac.peak.atac.cov_81-100_meth.bed", sep="\t", row.names = F, col.names = F, quote = F)
-
-
-
-
-
